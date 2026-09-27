@@ -313,6 +313,54 @@ describe('qflarebot-plugin-wifepicker', () => {
     expect(sessionBlocked.replies[0]).toContain('强娶还在冷却中')
   })
 
+  it('群消息真实的 mentions：被 @ 者是 member_openid / nickname，跳过 @ 机器人自己的那一项', async () => {
+    const db = createMemoryDB()
+    const BOT_MEMBER = '0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F'
+    const TARGET = 'A1A1A1A1A1A1A1A1A1A1A1A1A1A1A1A1'
+    const session = await runCommand(plugin, '强娶', '', {
+      session: {
+        scene: 'group',
+        targetId: 'group-1',
+        userId: 'user-1',
+        userName: '霸道总裁',
+        // 旧版框架只读 id，群里 session.mentions 是空 id
+        mentions: [
+          { id: '', username: '', bot: false },
+          { id: '', username: '', bot: false },
+        ],
+        raw: {
+          content: `<@${BOT_MEMBER}> /强娶 <@${TARGET}>`,
+          mentions: [
+            { scope: 'single', member_openid: BOT_MEMBER, nickname: '机器人', is_you: true },
+            { scope: 'single', member_openid: TARGET, nickname: '小白兔', bot: false, is_you: false },
+          ],
+        },
+      },
+      ctx: { db, botId: 'bot-123' },
+    })
+    const res = session.replies[0] as { text: string; image: { url: string } }
+    expect(res.text).toContain('成功强娶群友【小白兔】')
+    expect(res.image.url).toBe(`https://thirdqq.qlogo.cn/qqapp/bot-123/${TARGET}/640`)
+  })
+
+  it('只 @ 了机器人时不会把机器人当成目标', async () => {
+    const db = createMemoryDB()
+    const BOT_MEMBER = '0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F'
+    const session = await runCommand(plugin, '强娶', '', {
+      session: {
+        scene: 'group',
+        targetId: 'group-1',
+        userId: 'user-1',
+        raw: {
+          content: `<@${BOT_MEMBER}> /强娶`,
+          mentions: [{ scope: 'single', member_openid: BOT_MEMBER, nickname: '机器人', is_you: true }],
+        },
+      },
+      ctx: { db, botId: 'bot-123' },
+    })
+    expect(session.replies[0]).toContain('请在指令后 @ 你想强娶的群友')
+  })
+
   it('挑选老婆：候选名单存 D1，按钮选定后写记录，再点一次提示已失效', async () => {
     const db = createMemoryDB()
     for (const [id, name] of [['user-2', '小红'], ['user-3', '小蓝']]) {
