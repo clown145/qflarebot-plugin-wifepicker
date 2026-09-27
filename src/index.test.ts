@@ -343,6 +343,24 @@ describe('qflarebot-plugin-wifepicker', () => {
     expect(res.image.url).toBe(`https://thirdqq.qlogo.cn/qqapp/bot-123/${TARGET}/640`)
   })
 
+  it('没开全量消息的群：mentions 里没有被 @ 的群友，认正文里命令后面的 <@…>', async () => {
+    const db = createMemoryDB()
+    const BOT_MEMBER = '0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F'
+    const TARGET = 'A1A1A1A1A1A1A1A1A1A1A1A1A1A1A1A1'
+    const session = await runCommand(plugin, '强娶', '', {
+      session: {
+        scene: 'group',
+        targetId: 'group-1',
+        userId: 'user-1',
+        raw: { content: `<@${BOT_MEMBER}> 强娶 <@${TARGET}>` },
+      },
+      ctx: { db, botId: 'bot-123' },
+    })
+    const res = session.replies[0] as { text: string; image: { url: string } }
+    expect(res.text).toContain('成功强娶群友【群友(A1A1)】')
+    expect(res.image.url).toBe(`https://thirdqq.qlogo.cn/qqapp/bot-123/${TARGET}/640`)
+  })
+
   it('只 @ 了机器人时不会把机器人当成目标', async () => {
     const db = createMemoryDB()
     const BOT_MEMBER = '0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F'

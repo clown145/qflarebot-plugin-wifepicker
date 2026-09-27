@@ -41,8 +41,9 @@ const str = (v: unknown): string => (typeof v === 'string' ? v.trim() : '')
 
 /**
  * 从 session 中提取提及（@）的目标用户。
- * 以前只读 mentions 的 id，群里永远是空的，只能落到正文正则，而正文里排在最前面的往往是 @ 机器人自己；
- * 机器人在群里的 openid 和 AppID 不是一个，只能靠 mentions 里的 is_you 认出来
+ * 1. 平台给的 mentions（群消息可能是 id / username，也可能是 member_openid / nickname，都读），标了 bot 或 is_you 的是机器人；
+ * 2. mentions 里没有时退回正文里的 `<@openid>`：没开全量消息的群里「@机器人 强娶 @群友」，被 @ 的群友可能只在正文里。
+ *    机器人在群里的 openid 和 AppID 不是一个，mentions 没标出来就认不出它，所以命令前面那一串 @ 当作在叫机器人、跳过
  */
 export function extractTargetUser(session: Session): { userId: string; username: string } | null {
   const raw = session.raw as { content?: unknown; mentions?: unknown } | undefined
@@ -67,8 +68,10 @@ export function extractTargetUser(session: Session): { userId: string; username:
     return { userId: found.userId, username: named?.username || `群友(${found.userId.slice(-4)})` }
   }
 
-  // 3. 平台没给 mentions 时退回正文里的 <@openid>，跳过已知的机器人
-  for (const match of str(raw?.content).matchAll(/<@!?([0-9A-Fa-f]{16,64})>/g)) {
+  // 3. mentions 里没有时退回正文里的 <@openid>，跳过已知的机器人和命令前面那一串 @
+  const content = str(raw?.content)
+  const head = /^(?:\s*<@!?[0-9A-Fa-f]{16,64}>)+/.exec(content)?.[0] ?? ''
+  for (const match of content.slice(head.length).matchAll(/<@!?([0-9A-Fa-f]{16,64})>/g)) {
     const id = match[1]!
     if (!bots.has(id)) return { userId: id, username: `群友(${id.slice(-4)})` }
   }
