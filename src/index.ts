@@ -25,6 +25,8 @@ const PENDING_TTL_MS = 60 * 1000
 // 只在部分群启用：用面板插件详情页的「生效的群」，框架分发时就挡掉，插件里不再自己判断
 export default definePlugin<WifePickerConfig>({
   name: 'wifepicker',
+  // 没用到契约 2 的 ctx.db.batch()，写 1 让 0.4 以前的机器人也能装（不写就是构建时 SDK 的版本）
+  apiVersion: 1,
   displayName: '今日老婆',
   description: '抽取活跃群友当老婆，支持强娶、挑选、求婚与被强娶排行，D1 存储与自动惰性清理',
   permissions: ['db'],
