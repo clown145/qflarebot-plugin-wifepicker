@@ -619,3 +619,22 @@ describe('qflarebot-plugin-wifepicker', () => {
 })
 
 
+
+/**
+ * 分发顺序的守卫：框架在同 priority 时让命令排在事件前面，命令默认 block: true，
+ * 命中后事件就不再跑了。所以「记录活跃群友」必须显式声明比命令更高的 priority，
+ * 否则只发过 `/今日老婆` 的人不会被记进活跃池，抽人时被漏掉。
+ *
+ * 这里只断言声明本身——真实分发顺序由框架的 dispatcher.test.ts 保证。
+ */
+describe('活跃群友事件的 priority 守卫', () => {
+  it('消息类事件声明了比命令更高的 priority', async () => {
+    const { normalizePlugin } = await import('@qqbot/sdk')
+    const normalized = normalizePlugin(plugin)
+    const msgEvents = normalized.events.filter((e) => e.event.includes('qq.group.message') || e.event.includes('qq.group.at_message'))
+    expect(msgEvents).toHaveLength(2)
+    for (const rule of msgEvents) {
+      expect(rule.priority, '消息事件必须优先于命令，否则命令消息不记活跃').toBeGreaterThan(0)
+    }
+  })
+})

@@ -89,16 +89,26 @@ export default definePlugin<WifePickerConfig>({
 
   events: {
     // 监听群消息与 @消息，静默维护活跃群友池（按天记、一个群一行、攒一会儿再写，见 db.ts）
-    'qq.group.at_message': async ({ session, ctx }) => {
-      if (session.scene === 'group' && session.targetId && session.userId) {
-        ctx.waitUntil(recordActiveUser(ctx.db, session.targetId, session.userId, session.userName || '群友', ctx.config.active_user_days))
-      }
+    //
+    // **priority 必须比命令高**：框架在同 priority 时让命令排在事件前面，命令默认
+    // `block: true`，命中后事件就不再跑了。不加这一条的话，只发过 `/今日老婆`、`/查询老婆`
+    // 这类命令的人不会被记进活跃池，抽人时就会被漏掉。事件默认 priority 是 0，给个正数就够。
+    'qq.group.at_message': {
+      priority: 10,
+      async handler({ session, ctx }) {
+        if (session.scene === 'group' && session.targetId && session.userId) {
+          ctx.waitUntil(recordActiveUser(ctx.db, session.targetId, session.userId, session.userName || '群友', ctx.config.active_user_days))
+        }
+      },
     },
-    'qq.group.message': async ({ session, ctx }) => {
-      if (ctx.config.only_record_at_message) return
-      if (session.scene === 'group' && session.targetId && session.userId) {
-        ctx.waitUntil(recordActiveUser(ctx.db, session.targetId, session.userId, session.userName || '群友', ctx.config.active_user_days))
-      }
+    'qq.group.message': {
+      priority: 10,
+      async handler({ session, ctx }) {
+        if (ctx.config.only_record_at_message) return
+        if (session.scene === 'group' && session.targetId && session.userId) {
+          ctx.waitUntil(recordActiveUser(ctx.db, session.targetId, session.userId, session.userName || '群友', ctx.config.active_user_days))
+        }
+      },
     },
   },
 
